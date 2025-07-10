@@ -23,7 +23,14 @@
     <option value="list1">List 1</option>
     <option value="list2">List 2</option>
   </select>
-  
+
+  <select id="statusFilter">
+    <option value="all">All</option>
+    <option value="completed">Completed</option>
+    <option value="pending">Pending</option>
+  </select>
+  <button onclick="applyFilters()">Search</button>
+
   <br><br/>
     <input type="text" id="newListInput" placeholder="Yeni liste adı" />
     <button onclick="addNewList()">Liste Ekle</button>
@@ -35,13 +42,6 @@
     <option value="list2">List 2</option>
   </select>
   <button onclick="addNewTodo()">Todo Ekle</button>
-
-  <select id="statusFilter">
-    <option value="all">All</option>
-    <option value="completed">Completed</option>
-    <option value="pending">Pending</option>
-  </select>
-  <button onclick="applyFilters()">Search</button>
   
   <div id="todoContainer"></div>
 
