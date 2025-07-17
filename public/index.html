@@ -11,6 +11,7 @@
             padding: 20px;
             background-color: #f4f6f8;
             color: #333;
+            position: relative;
         }     
 
         h2 {
@@ -193,12 +194,31 @@
             background-color: #3a3a3a;
             border-color: #555;
         }
+
+        #todoHeaderImageContainer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 999;
+        }
+
+        #todoHeaderImage {
+            max-width: 180px;
+            height: auto;
+            border-radius: 10px;
+            opacity: 0.9;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body>
 
     <div id="themeToggleContainer">
         <button id="themeButton" onclick="toggleTheme()">🌞 Açık Mod</button>
+    </div>
+
+    <div id="todoHeaderImageContainer">
+        <img id="todoHeaderImage" src="assets/Image_1.png" alt="Image_1" />
     </div>
 
     <h2>Todo Web</h2>
