@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <title>Todo App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -13,8 +14,11 @@
         }     
 
         h2 {
-            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 36px;
             color: #3f51b5;
+            letter-spacing: 1px;
+            text-align: center;
             margin-bottom: 20px;
         }
 
@@ -75,9 +79,9 @@
             justify-content: space-between;
             background-color: #fafafa;
             border: 1px solid #ddd;
-            padding: 10px;
-            margin: 8px 0;
-            border-radius: 6px;
+            padding: 6px 10px;  
+            margin: 4px 0;    
+            border-radius: 4px; 
         }
 
         .todo-item.completed span {
@@ -169,6 +173,26 @@
         body.dark .todo-item span {
         color: #ddd;
         }
+
+        body.dark .btn-delete {
+            background-color: #e53935; /* daha koyu kırmızı */
+            color: white;
+        }
+
+        body.dark .btn-complete {
+            background-color: #5e35b1; /* daha koyu mor */
+            color: white;
+        }
+
+        body.dark #todoContainer {
+            background-color: #2b2b2b;
+            border-color: #444;
+        }
+
+        body.dark #todoContainer .todo-item {
+            background-color: #3a3a3a;
+            border-color: #555;
+        }
     </style>
 </head>
 <body>
@@ -209,11 +233,24 @@
         <option value="list2">List 2</option>
     </select>
     <button onclick="addNewTodo()">Todo Ekle</button>
+    <button onclick="saveAllTodos()">💾 Save</button>
   
-    <div id="todoContainer"></div>
+    <h3>📝 Kaydedilmemiş Todolar</h3>
+        <div id="todoContainer" style="display: none;"></div>
+    
+    <h3>📥 Inbox</h3>
+        <div id="inboxContainer"></div>
+
+    <h3>📅 Today</h3>
+        <div id="todayContainer"></div>
+
+    <h3>📆 Upcoming</h3>
+        <div id="upcomingContainer"></div>
+
 
 <script>
     
+    let pendingTodos = [];
     let todos = [];
 
     async function fetchTodos() {
@@ -236,6 +273,49 @@
         applyFilters();
     }
 
+    function categorizeTodos(todos) {
+        const today = new Date().toISOString().split('T')[0];
+
+        const inbox = [];
+        const todayList = [];
+        const upcoming = [];
+
+        for (let todo of todos) {
+            if (!todo.dueDate) {
+                inbox.push(todo);
+            } else if (todo.dueDate <= today) {
+                todayList.push(todo);
+            } else {
+                upcoming.push(todo);
+            }
+        }
+
+        return { inbox, today: todayList, upcoming };
+    }
+
+    function renderCategorizedTodos() {
+        const { inbox, today, upcoming } = categorizeTodos(todos);
+
+        renderTodosToContainer("inboxContainer", inbox);
+        renderTodosToContainer("todayContainer", today);
+        renderTodosToContainer("upcomingContainer", upcoming);
+    }
+
+    function renderTodosToContainer(containerId, list) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = "";
+        list.forEach(todo => {
+            const div = document.createElement("div");
+            div.className = "todo-item" + (todo.completed ? " completed" : "");
+            div.innerHTML = `
+                <input type="checkbox" ${todo.completed ? "checked" : ""} onchange="toggleComplete(${todo.id})"/>
+                <span>${todo.text}</span>
+                <button class="btn-delete" onclick="deleteTodo(${todo.id})">Delete</button>
+                <button class="btn-complete" onclick="toggleComplete(${todo.id})">Complete</button>
+            `;
+            container.appendChild(div);
+        });
+    }
 
     async function toggleComplete(id) {
         const isLoggedIn = await checkLoginStatus();
@@ -297,6 +377,7 @@
         });
 
         fetchTodos();
+        renderPendingTodos();
     }
 
     (async () => {
@@ -348,46 +429,75 @@
         input.value = "";
     }
 
-    async function addNewTodo() {
+    function addNewTodo() {
         const text = document.getElementById("newTodoInput").value.trim();
         const list = document.getElementById("todoListSelect").value;
         const dueDate = document.getElementById("dueDateInput").value || null;
 
         if (!text) return;
 
-        const isLoggedIn = await checkLoginStatus();
+        const newTodo = {
+            id: Date.now(),
+            text,
+            list,
+            dueDate,
+            completed: false
+        };
 
-        if (!isLoggedIn) {
-            let guestTodos = JSON.parse(localStorage.getItem("guestTodos") || "[]");
-            if (guestTodos.length >= 10) {
-                alert("🔒 Giriş yapmadan en fazla 10 todo ekleyebilirsiniz.");
-                return;
-            }
-
-            const newTodo = {
-                id: Date.now(),
-                text,
-                list,
-                dueDate,
-                completed: false
-            };
-            guestTodos.push(newTodo);
-            localStorage.setItem("guestTodos", JSON.stringify(guestTodos));
-            renderTodos(guestTodos);
-            document.getElementById("newTodoInput").value = "";
-            document.getElementById("dueDateInput").value = "";
-            return;
-        }
-
-        await fetch("/todos", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, list, dueDate }),
-        });
-
+        pendingTodos.push(newTodo); 
+        renderPendingTodos(); 
         document.getElementById("newTodoInput").value = "";
         document.getElementById("dueDateInput").value = "";
-        fetchTodos();
+    }
+
+    function renderPendingTodos() {
+        const container = document.getElementById("todoContainer");
+        if (pendingTodos.length === 0) {
+            container.style.display = "none";
+            return;
+        }
+        container.style.display = "block";
+        container.innerHTML = '';
+        pendingTodos.forEach((todo, index) => {
+            const div = document.createElement("div");
+            div.className = "todo-item" + (todo.completed ? " completed" : "");
+            div.innerHTML = `
+                <input type="checkbox" ${todo.completed ? "checked" : ""} onclick="togglePendingComplete(${index})"/>
+                <span>${todo.text} ${todo.dueDate ? `- (${todo.dueDate})` : ''}</span>
+                <div class="todo-controls">
+                    <button class="btn-delete" onclick="deletePendingTodo(${index})">Delete</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    async function saveAllTodos() {
+        const isLoggedIn = await checkLoginStatus();
+
+        for (let todo of pendingTodos) {
+            const payload = {
+                text: todo.text,
+                list: todo.list,
+                dueDate: todo.dueDate
+            };
+
+            const res = await fetch("/todos", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                alert(`Hata: ${data.error}`);
+                return;
+            }
+        }
+
+        pendingTodos = [];
+        fetchTodos(); 
+        renderPendingTodos();
     }
 
     function applyFilters() {
@@ -396,32 +506,29 @@
         const statusFilter = document.getElementById("statusFilter").value;
 
         const filtered = todos.filter(todo => {
-        const matchesSearch = todo.text.toLowerCase().includes(search);
-        const matchesList = listFilter === "all" || todo.list === listFilter;
-        const matchesStatus =
-        statusFilter === "all" ||
-            (statusFilter === "completed" && todo.completed) ||
-            (statusFilter === "pending" && !todo.completed);
+            const matchesSearch = todo.text.toLowerCase().includes(search);
+            const matchesList = listFilter === "all" || todo.list === listFilter;
+            const matchesStatus =
+                statusFilter === "all" ||
+                (statusFilter === "completed" && todo.completed) ||
+                (statusFilter === "pending" && !todo.completed);
             return matchesSearch && matchesList && matchesStatus;
         });
 
-        renderTodos(filtered);
+        const categorized = categorizeTodos(filtered);
+        renderTodosToContainer("inboxContainer", categorized.inbox);
+        renderTodosToContainer("todayContainer", categorized.today);
+        renderTodosToContainer("upcomingContainer", categorized.upcoming);
     }
 
-    function renderTodos(filtered = todos) {
-    const container = document.getElementById("todoContainer");
-    container.innerHTML = '';
-    filtered.forEach(todo => {
-        const div = document.createElement("div");
-        div.className = "todo-item" + (todo.completed ? " completed" : "");
-        div.innerHTML = `
-            <input type="checkbox" ${todo.completed ? "checked" : ""} onchange="toggleComplete(${todo.id})"/>
-            <span>${todo.text}</span>
-            <button class="btn-delete" onclick="deleteTodo(${todo.id})">Delete</button>
-            <button class="btn-complete" onclick="toggleComplete(${todo.id})">Complete</button>
-            `;
-        container.appendChild(div);
-        });
+    function deletePendingTodo(index) {
+        pendingTodos.splice(index, 1);
+        renderPendingTodos();
+    }
+
+    function togglePendingComplete(index) {
+        pendingTodos[index].completed = !pendingTodos[index].completed;
+        renderPendingTodos();
     }
 
     function toggleTheme() {
