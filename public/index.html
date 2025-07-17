@@ -4,19 +4,101 @@
     <meta charset="UTF-8" />
     <title>Todo App</title>
     <style>
-        body { font-family: Arial; margin: 20px; }
-        input[type="text"], select { padding: 5px; margin: 5px; }
-        button { padding: 5px 10px; margin: 5px; }
-        .todo-item { display: flex; align-items: center; margin: 5px 0; }
-        .todo-item.completed span { text-decoration: line-through; color: gray; }
-        .btn-delete { background-color: red; color: white; border: none; padding: 5px 10px; margin-left: 10px; cursor: pointer; }
-        .btn-complete { background-color: blueviolet; color: white; border: none; padding: 5px 10px; margin-left: 5px; cursor: pointer; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f6f8;
+            color: #333;
+        }     
+
+        h2 {
+            text-align: center;
+            color: #3f51b5;
+            margin-bottom: 20px;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .btn-delete {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .btn-complete {
+            background-color: #673ab7;
+            color: white;
+        }
+
+        .btn-logout {
+            background-color: #607d8b;
+            color: white;
+        }
+
+        input[type="text"], select {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            min-width: 160px;
+        }
+
         #todoContainer {
-            border: 2px solid #ccc;
-            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: white;
             border-radius: 10px;
+            padding: 20px;
             margin-top: 20px;
-            background-color: #f9f9f9;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #fafafa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 6px;
+        }
+
+        .todo-item.completed span {
+            text-decoration: line-through;
+            color: gray;
+        }
+
+        .todo-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        @media (max-width: 600px) {
+            .todo-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .todo-controls {
+                margin-top: 10px;
+            }
         }
     </style>
 </head>
@@ -24,21 +106,10 @@
 
     <h2>Todo Web</h2>
   
-    <div id="authContainer">
-    <h3>Giriş Yap / Kayıt Ol</h3>
-
-    <input type="text" id="authUsername" placeholder="Kullanıcı adı" />
-    <input type="password" id="authPassword" placeholder="Şifre" />
-    <button onclick="login()">Giriş Yap</button>
-    <button onclick="register()">Kayıt Ol</button>
     <button onclick="logout()">Çıkış Yap</button>
-
-    <p id="authMessage"></p>
-    </div>
 
     <hr/>
 
-    
     <input type="text" id="searchInput" placeholder="Search" />
         <select id="listFilter">
         <option value="all">All</option>
@@ -146,38 +217,13 @@
         fetchTodos();
     }
 
-    async function register() {
-        const username = document.getElementById("authUsername").value;
-        const password = document.getElementById("authPassword").value;
-
-        const res = await fetch("/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
-        });
-
-        const data = await res.json();
-        document.getElementById("authMessage").textContent = data.success ? "✅ Kayıt başarılı, şimdi giriş yap." : `❌ ${data.error || "Kayıt başarısız"}`;
-    }
-
-    async function login() {
-        const username = document.getElementById("authUsername").value;
-        const password = document.getElementById("authPassword").value;
-
-        const res = await fetch("/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
-        });
-
-        const data = await res.json();
-        if (data.success) {
-            document.getElementById("authMessage").textContent = "✅ Giriş başarılı.";
-            fetchTodos();
-        } else {
-            document.getElementById("authMessage").textContent = `❌ ${data.error || "Giriş başarısız"}`;
+    (async () => {
+        const isGuest = localStorage.getItem("isGuest") === "true";
+        const isLoggedIn = await checkLoginStatus();
+        if (!isGuest && !isLoggedIn) {
+            window.location.href = "auth.html";
         }
-    }
+    })();
 
     async function checkLoginStatus() {
         try {
@@ -190,14 +236,14 @@
         }
     }
 
-
     async function logout() {
+        localStorage.removeItem("guestTodos");
+        localStorage.removeItem("isGuest");
+    
         const res = await fetch("/logout", { method: "POST" });
         const data = await res.json();
-        if (data.success) {
-            document.getElementById("authMessage").textContent = "👋 Çıkış yapıldı.";
-            fetchTodos();
-        }
+    
+        window.location.href = "auth.html";
     }
 
     function addNewList() {
@@ -257,7 +303,6 @@
         document.getElementById("newTodoInput").value = "";
         fetchTodos();
     }
-
 
     function applyFilters() {
         const search = document.getElementById("searchInput").value.toLowerCase();
