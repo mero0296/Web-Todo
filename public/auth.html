@@ -34,6 +34,37 @@
             cursor: pointer;
         }
 
+        #themeToggleContainer {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+
+        body.light {
+            background-color: #f4f6f8;
+            color: #333;
+        }
+
+        body.dark {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        input, select, button {
+            background-color: inherit;
+            color: inherit;
+            border: 1px solid #ccc;
+            padding: 8px;
+            margin: 5px;
+            border-radius: 6px;
+        }
+
+        button {
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
         .btn-login { background-color: #4CAF50; color: white; }
         .btn-register { background-color: #2196F3; color: white; }
         .btn-guest { background-color: #9C27B0; color: white; }
@@ -41,6 +72,10 @@
     </style>
 </head>
 <body>
+
+    <div id="themeToggleContainer">
+        <button id="themeButton" onclick="toggleTheme()">🌞 Açık Mod</button>
+    </div>
     
     <h2>Todo Web - Giriş / Kayıt</h2>
 
@@ -94,6 +129,28 @@
         localStorage.setItem("isGuest", "true");  // ziyaretçi olduğunu kaydet
         window.location.href = "index.html";
     }
+
+    function toggleTheme() {
+        const current = document.body.classList.contains("dark") ? "dark" : "light";
+        const newTheme = current === "dark" ? "light" : "dark";
+        document.body.classList.remove(current);
+        document.body.classList.add(newTheme);
+        localStorage.setItem("theme", newTheme);
+        updateThemeButtonText(newTheme);
+    }
+
+    function applySavedTheme() {
+        const saved = localStorage.getItem("theme") || "light";
+        document.body.classList.add(saved);
+        updateThemeButtonText(saved);
+    }
+
+    function updateThemeButtonText(theme) {
+        const btn = document.getElementById("themeButton");
+        if (btn) btn.textContent = theme === "dark" ? "🌙 Karanlık Mod" : "🌞 Açık Mod";
+    }
+
+    window.addEventListener("DOMContentLoaded", applySavedTheme);
 
 </script>
 </body>
