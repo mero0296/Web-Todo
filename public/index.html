@@ -72,12 +72,33 @@
     let todos = [];
 
     async function fetchTodos() {
-        const res = await fetch("/todos");
-        todos = await res.json();
+        const isLoggedIn = await checkLoginStatus();
+
+        if (isLoggedIn) {
+            const res = await fetch("/todos");
+            todos = await res.json();
+        } else {
+            todos = JSON.parse(localStorage.getItem("guestTodos") || "[]");
+        }
+
         applyFilters();
     }
 
     async function toggleComplete(id) {
+        const isLoggedIn = await checkLoginStatus();
+    
+        if (!isLoggedIn) {
+            let guestTodos = JSON.parse(localStorage.getItem("guestTodos") || "[]");
+            const index = guestTodos.findIndex(t => t.id === id);
+            if (index !== -1) {
+                guestTodos[index].completed = !guestTodos[index].completed;
+                localStorage.setItem("guestTodos", JSON.stringify(guestTodos));
+                todos = guestTodos;
+                applyFilters();
+            }
+            return;
+        }
+
         const todo = todos.find(t => t.id === id);
         if (!todo) return;
 
@@ -90,8 +111,26 @@
         fetchTodos();
     }
 
-
     async function deleteTodo(id) {
+        const isLoggedIn = await checkLoginStatus();
+
+        if (!isLoggedIn) {
+            let guestTodos = JSON.parse(localStorage.getItem("guestTodos") || "[]");
+            const todo = guestTodos.find(t => t.id === id);
+            if (!todo) return;
+
+            if (!todo.completed) {
+                const confirmDelete = confirm("Uyarı! Bu todoyu daha tamamlamadınız. Silmek istediğinizden emin misiniz?");
+                if (!confirmDelete) return;
+            }
+
+            guestTodos = guestTodos.filter(t => t.id !== id);
+            localStorage.setItem("guestTodos", JSON.stringify(guestTodos));
+            todos = guestTodos;
+            applyFilters();
+            return;
+        }
+
         const todo = todos.find(t => t.id === id);
         if (!todo) return;
 
@@ -140,6 +179,18 @@
         }
     }
 
+    async function checkLoginStatus() {
+        try {
+            const res = await fetch("/auth-status");
+            const data = await res.json();
+            return data.loggedIn;
+        } catch (err) {
+            console.error("checkLoginStatus hatası:", err);
+            return false;
+        }
+    }
+
+
     async function logout() {
         const res = await fetch("/logout", { method: "POST" });
         const data = await res.json();
@@ -149,7 +200,6 @@
         }
     }
 
-    
     function addNewList() {
         const input = document.getElementById("newListInput");
         const listName = input.value.trim();
@@ -165,7 +215,7 @@
         const newOption2 = document.createElement("option");
         newOption2.value = listName;
         newOption2.textContent = listName;
-        todoListSelect.appendChild(newOption2);
+            todoListSelect.appendChild(newOption2);
 
         input.value = "";
     }
@@ -175,6 +225,28 @@
         const list = document.getElementById("todoListSelect").value;
 
         if (!text) return;
+
+        const isLoggedIn = await checkLoginStatus();
+    
+        if (!isLoggedIn) {
+            let guestTodos = JSON.parse(localStorage.getItem("guestTodos") || "[]");
+            if (guestTodos.length >= 10) {
+                alert("🔒 Giriş yapmadan en fazla 10 todo ekleyebilirsiniz.");
+                return;
+            }
+
+            const newTodo = {
+                id: Date.now(),
+                text,
+                list,
+                completed: false
+            };
+            guestTodos.push(newTodo);
+            localStorage.setItem("guestTodos", JSON.stringify(guestTodos));
+            renderTodos(guestTodos);
+            document.getElementById("newTodoInput").value = "";
+            return;
+        }
 
         await fetch("/todos", {
             method: "POST",
