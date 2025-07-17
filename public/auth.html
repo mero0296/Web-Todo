@@ -82,7 +82,7 @@
     <input type="text" id="authUsername" placeholder="Kullanıcı adı" />
     <input type="password" id="authPassword" placeholder="Şifre" />
     <br/>
-    <button class="btn-login" onclick="login()">Giriş Yap</button>
+    <button class="btn-login" onclick="login()" id="loginBtn">Giriş Yap</button>
     <button class="btn-register" onclick="register()">Kayıt Ol</button>
     <br/>
     <button class="btn-guest" onclick="guestLogin()">Ziyaretçi Olarak Devam Et</button>
@@ -122,11 +122,11 @@
 
         const data = await res.json();
         document.getElementById("authMessage").textContent =
-        data.success ? "✅ Kayıt başarılı, şimdi giriş yap." : `❌ ${data.error || "Kayıt başarısız"}`;
+            data.success ? "✅ Kayıt başarılı, şimdi giriş yap." : `❌ ${data.error || "Kayıt başarısız"}`;
     }
 
     function guestLogin() {
-        localStorage.setItem("isGuest", "true");  // ziyaretçi olduğunu kaydet
+        localStorage.setItem("isGuest", "true");
         window.location.href = "index.html";
     }
 
@@ -150,8 +150,22 @@
         if (btn) btn.textContent = theme === "dark" ? "🌙 Karanlık Mod" : "🌞 Açık Mod";
     }
 
-    window.addEventListener("DOMContentLoaded", applySavedTheme);
+    document.addEventListener("DOMContentLoaded", () => {
+        applySavedTheme();
 
+        const usernameInput = document.getElementById("authUsername");
+        const passwordInput = document.getElementById("authPassword");
+
+        [usernameInput, passwordInput].forEach(input => {
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    document.getElementById("loginBtn").click();
+                }
+            });
+        });
+    });
+    
 </script>
 </body>
 </html>
