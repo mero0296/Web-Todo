@@ -1,0 +1,100 @@
+<!-- auth.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Giriş / Kayıt</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f7fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 80px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+        }
+
+        input[type="text"], input[type="password"] {
+            padding: 10px;
+            margin: 5px;
+            width: 250px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .btn-login { background-color: #4CAF50; color: white; }
+        .btn-register { background-color: #2196F3; color: white; }
+        .btn-guest { background-color: #9C27B0; color: white; }
+        #authMessage { margin-top: 10px; color: red; }
+    </style>
+</head>
+<body>
+    
+    <h2>Todo Web - Giriş / Kayıt</h2>
+
+    <input type="text" id="authUsername" placeholder="Kullanıcı adı" />
+    <input type="password" id="authPassword" placeholder="Şifre" />
+    <br/>
+    <button class="btn-login" onclick="login()">Giriş Yap</button>
+    <button class="btn-register" onclick="register()">Kayıt Ol</button>
+    <br/>
+    <button class="btn-guest" onclick="guestLogin()">Ziyaretçi Olarak Devam Et</button>
+
+    <p id="authMessage"></p>
+
+<script>
+    
+    async function login() {
+        const username = document.getElementById("authUsername").value;
+        const password = document.getElementById("authPassword").value;
+
+        const res = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            localStorage.setItem("isGuest", "false");
+            window.location.href = "index.html";
+        } else {
+            document.getElementById("authMessage").textContent = `❌ ${data.error || "Giriş başarısız"}`;
+        }
+    }
+
+    async function register() {
+        const username = document.getElementById("authUsername").value;
+        const password = document.getElementById("authPassword").value;
+
+        const res = await fetch("/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+        document.getElementById("authMessage").textContent =
+        data.success ? "✅ Kayıt başarılı, şimdi giriş yap." : `❌ ${data.error || "Kayıt başarısız"}`;
+    }
+
+    function guestLogin() {
+        localStorage.setItem("isGuest", "true");  // ziyaretçi olduğunu kaydet
+        window.location.href = "index.html";
+    }
+
+</script>
+</body>
+</html>
