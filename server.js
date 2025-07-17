@@ -69,6 +69,10 @@ app.post("/logout", (req, res) => {
   });
 });
 
+app.get("/auth-status", (req, res) => {
+  res.json({ loggedIn: !!req.session.userId });
+});
+
 app.get("/todos", (req, res) => {
   const userId = req.session.userId || null;
 
