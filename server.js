@@ -35,6 +35,13 @@ app.use(session({
   saveUninitialized: true,
 }));
 
+function authMiddleware(req, res, next) {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: "Not authorized" });
+    }
+    next();
+}
+
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: "Eksik bilgi" });
@@ -83,7 +90,7 @@ app.get("/todos", (req, res) => {
 });
 
 app.post("/todos", (req, res) => {
-  const { text, list } = req.body;
+  const { text, list, dueDate } = req.body;
   const userId = req.session.userId || null;
 
   if (!userId) {
@@ -93,16 +100,24 @@ app.post("/todos", (req, res) => {
         return res.status(403).json({ error: "Ziyaretçi olarak en fazla 10 todo ekleyebilirsin." });
       }
 
-      db.run("INSERT INTO todos (text, completed, list, userId) VALUES (?, ?, ?, NULL)", [text, false, list], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ id: this.lastID });
-      });
+      db.run(
+        "INSERT INTO todos (text, completed, list, userId, dueDate) VALUES (?, ?, ?, NULL, ?)",
+        [text, false, list, dueDate || null],
+        function (err) {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json({ id: this.lastID });
+        }
+      );
     });
   } else {
-    db.run("INSERT INTO todos (text, completed, list, userId) VALUES (?, ?, ?, ?)", [text, false, list, userId], function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: this.lastID });
-    });
+    db.run(
+      "INSERT INTO todos (text, completed, list, userId, dueDate) VALUES (?, ?, ?, ?, ?)",
+      [text, false, list, userId, dueDate || null],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ id: this.lastID });
+      }
+    );
   }
 });
 
