@@ -24,6 +24,21 @@
 
     <h2>Todo Web</h2>
   
+    <div id="authContainer">
+    <h3>Giriş Yap / Kayıt Ol</h3>
+
+    <input type="text" id="authUsername" placeholder="Kullanıcı adı" />
+    <input type="password" id="authPassword" placeholder="Şifre" />
+    <button onclick="login()">Giriş Yap</button>
+    <button onclick="register()">Kayıt Ol</button>
+    <button onclick="logout()">Çıkış Yap</button>
+
+    <p id="authMessage"></p>
+    </div>
+
+    <hr/>
+
+    
     <input type="text" id="searchInput" placeholder="Search" />
         <select id="listFilter">
         <option value="all">All</option>
@@ -92,7 +107,49 @@
         fetchTodos();
     }
 
+    async function register() {
+        const username = document.getElementById("authUsername").value;
+        const password = document.getElementById("authPassword").value;
 
+        const res = await fetch("/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+        document.getElementById("authMessage").textContent = data.success ? "✅ Kayıt başarılı, şimdi giriş yap." : `❌ ${data.error || "Kayıt başarısız"}`;
+    }
+
+    async function login() {
+        const username = document.getElementById("authUsername").value;
+        const password = document.getElementById("authPassword").value;
+
+        const res = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById("authMessage").textContent = "✅ Giriş başarılı.";
+            fetchTodos();
+        } else {
+            document.getElementById("authMessage").textContent = `❌ ${data.error || "Giriş başarısız"}`;
+        }
+    }
+
+    async function logout() {
+        const res = await fetch("/logout", { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById("authMessage").textContent = "👋 Çıkış yapıldı.";
+            fetchTodos();
+        }
+    }
+
+    
     function addNewList() {
         const input = document.getElementById("newListInput");
         const listName = input.value.trim();
@@ -128,6 +185,7 @@
         document.getElementById("newTodoInput").value = "";
         fetchTodos();
     }
+
 
     function applyFilters() {
         const search = document.getElementById("searchInput").value.toLowerCase();
