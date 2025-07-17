@@ -203,6 +203,7 @@
     <br/><br/>
   
     <input type="text" id="newTodoInput" placeholder="Yeni todo" />
+    <input type="date" id="dueDateInput" />
     <select id="todoListSelect">
         <option value="list1">List 1</option>
         <option value="list2">List 2</option>
@@ -350,11 +351,12 @@
     async function addNewTodo() {
         const text = document.getElementById("newTodoInput").value.trim();
         const list = document.getElementById("todoListSelect").value;
+        const dueDate = document.getElementById("dueDateInput").value || null;
 
         if (!text) return;
 
         const isLoggedIn = await checkLoginStatus();
-    
+
         if (!isLoggedIn) {
             let guestTodos = JSON.parse(localStorage.getItem("guestTodos") || "[]");
             if (guestTodos.length >= 10) {
@@ -366,22 +368,25 @@
                 id: Date.now(),
                 text,
                 list,
+                dueDate,
                 completed: false
             };
             guestTodos.push(newTodo);
             localStorage.setItem("guestTodos", JSON.stringify(guestTodos));
             renderTodos(guestTodos);
             document.getElementById("newTodoInput").value = "";
+            document.getElementById("dueDateInput").value = "";
             return;
         }
 
         await fetch("/todos", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, list }),
+            body: JSON.stringify({ text, list, dueDate }),
         });
 
         document.getElementById("newTodoInput").value = "";
+        document.getElementById("dueDateInput").value = "";
         fetchTodos();
     }
 
