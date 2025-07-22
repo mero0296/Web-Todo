@@ -14,6 +14,30 @@
             margin-top: 80px;
         }
 
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('assets/Image_1.png');
+            background-size: cover;
+            background-position: center;
+            filter: blur(8px) brightness(0.7);
+            z-index: -1;
+        }
+
+        body > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        input, button {
+            background-color: rgba(255, 255, 255, 0.85); /* yarı şeffaf beyaz */
+            backdrop-filter: blur(2px);
+        }
+
         h2 {
             margin-bottom: 20px;
         }
@@ -65,6 +89,52 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(20, 20, 20, 0.8);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            font-size: 20px;
+            backdrop-filter: blur(4px);
+        }
+
+        .spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3498db;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1.2s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #logoContainer {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1001;
+        }
+
+        #authLogo {
+            width: 120px;
+            height: auto;
+            opacity: 0.95;
+            border-radius: 8px;
+        }
+
         .btn-login { background-color: #4CAF50; color: white; }
         .btn-register { background-color: #2196F3; color: white; }
         .btn-guest { background-color: #9C27B0; color: white; }
@@ -73,8 +143,17 @@
 </head>
 <body>
 
+    <div id="loadingScreen" style="display: none;">
+        <div class="spinner"></div>
+        <p>Yükleniyor...</p>
+    </div>
+
     <div id="themeToggleContainer">
         <button id="themeButton" onclick="toggleTheme()">🌞 Açık Mod</button>
+    </div>
+
+    <div id="logoContainer">
+        <img src="assets/Logo.png" alt="Logo" id="authLogo" />
     </div>
     
     <h2>Todo Web - Giriş / Kayıt</h2>
@@ -92,21 +171,33 @@
 <script>
     
     async function login() {
+        document.getElementById("loadingScreen").style.display = "flex";
+
         const username = document.getElementById("authUsername").value;
         const password = document.getElementById("authPassword").value;
 
-        const res = await fetch("/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
-        });
+        try {
+            const res = await fetch("/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password }),
+            });
 
-        const data = await res.json();
-        if (data.success) {
-            localStorage.setItem("isGuest", "false");
-            window.location.href = "index.html";
-        } else {
-            document.getElementById("authMessage").textContent = `❌ ${data.error || "Giriş başarısız"}`;
+            const data = await res.json();
+
+            if (data.success) {
+                localStorage.setItem("isGuest", "false");
+
+                setTimeout(() => {
+                    window.location.href = "index.html";
+                }, 2500);
+            } else {
+                document.getElementById("loadingScreen").style.display = "none";
+                document.getElementById("authMessage").textContent = `❌ ${data.error || "Giriş başarısız"}`;
+            }
+        } catch (err) {
+            document.getElementById("loadingScreen").style.display = "none";
+            document.getElementById("authMessage").textContent = `❌ Sunucu hatası`;
         }
     }
 
@@ -165,7 +256,29 @@
             });
         });
     });
-    
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("loadingScreen").style.display = "none";
+
+        applySavedTheme();
+
+        const usernameInput = document.getElementById("authUsername");
+        const passwordInput = document.getElementById("authPassword");
+
+        [usernameInput, passwordInput].forEach(input => {
+            input.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    document.getElementById("loginBtn").click();
+                }
+            });
+        });
+    });
+
+    window.addEventListener("pageshow", () => {
+        document.getElementById("loadingScreen").style.display = "none";
+    });
+
 </script>
 </body>
 </html>
