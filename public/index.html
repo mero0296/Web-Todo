@@ -247,6 +247,10 @@
   
     <button onclick="logout()">Çıkış Yap</button>
 
+    <div id="dailyGoalStatus" style="position: absolute; top: 10px; left: 10px; font-weight: bold;">
+    🎯 Hedef: <span id="goalCount">0</span>/<span id="goalLimit">0</span> <span id="goalTrophy" style="display: none;">🏆</span>
+    </div>
+
     <hr/>
 
     <input type="text" id="searchInput" placeholder="Search" />
@@ -294,6 +298,8 @@
     
     let pendingTodos = [];
     let todos = [];
+    let dailyGoalLimit = 3;
+    let completedToday = 0;
 
     async function fetchTodos() {
         const isLoggedIn = await checkLoginStatus();
@@ -311,7 +317,9 @@
         } else {
             todos = JSON.parse(localStorage.getItem("guestTodos") || "[]");
         }
-
+        
+        completedToday = countTodayCompleted(todos);
+        updateGoalUI();
         applyFilters();
     }
 
@@ -591,6 +599,23 @@
     function updateThemeButtonText(theme) {
         const btn = document.getElementById("themeButton");
         if (btn) btn.textContent = theme === "dark" ? "🌙 Karanlık Mod" : "🌞 Açık Mod";
+    }
+
+    function updateGoalUI() {
+        document.getElementById("goalCount").textContent = completedToday;
+        document.getElementById("goalLimit").textContent = dailyGoalLimit;
+
+        const trophy = document.getElementById("goalTrophy");
+        if (completedToday >= dailyGoalLimit) {
+            trophy.style.display = "inline";
+        } else {
+            trophy.style.display = "none";
+        }
+    }
+
+    function countTodayCompleted(todos) {
+        const today = new Date().toISOString().split("T")[0];
+        return todos.filter(todo => todo.completed && todo.dueDate === today).length;
     }
 
     window.addEventListener("DOMContentLoaded", applySavedTheme);
