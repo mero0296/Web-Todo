@@ -75,14 +75,18 @@
         }
 
         .todo-item {
+            padding: 6px 12px;
+            margin: 6px 0;
+        }
+
+        h3 {
+            background: none;
+            margin: 20px 0 10px 0;
+            font-size: 18px;
+            font-weight: bold;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            background-color: #fafafa;
-            border: 1px solid #ddd;
-            padding: 6px 10px;  
-            margin: 4px 0;    
-            border-radius: 4px; 
+            gap: 8px;
         }
 
         .todo-item.completed span {
@@ -176,12 +180,12 @@
         }
 
         body.dark .btn-delete {
-            background-color: #e53935; /* daha koyu kırmızı */
+            background-color: #e53935;
             color: white;
         }
 
         body.dark .btn-complete {
-            background-color: #5e35b1; /* daha koyu mor */
+            background-color: #5e35b1;
             color: white;
         }
 
@@ -209,6 +213,20 @@
             opacity: 0.9;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
+        #headerWithLogo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        #mainLogo {
+            width: 80px;
+            height: auto;
+            border-radius: 6px;
+            opacity: 0.95;
+        }
     </style>
 </head>
 <body>
@@ -221,7 +239,11 @@
         <img id="todoHeaderImage" src="assets/Image_1.png" alt="Image_1" />
     </div>
 
-    <h2>Todo Web</h2>
+    <div id="headerWithLogo">
+        <img src="assets/Logo.png" alt="Logo" id="mainLogo" />
+        <h2>Todo Web</h2>
+    </div>
+
   
     <button onclick="logout()">Çıkış Yap</button>
 
