@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Günlük Hedefler</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f4f6f8;
+            padding: 20px;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        .goal-item {
+            background: white;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            box-shadow: 0 0 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .goal-item.completed span {
+            text-decoration: line-through;
+            color: gray;
+        }
+
+        button {
+            margin-left: 5px;
+        }
+
+        #newGoalInput {
+            width: 60%;
+            padding: 10px;
+            margin-right: 10px;
+        }
+
+        body.light {
+            background-color: #f4f6f8;
+            color: #333;
+        }
+
+        body.dark {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        .goal-item {
+            transition: background-color 0.3s ease;
+        }
+
+        body.dark .goal-item {
+            background-color: #2c2c2c;
+            color: #ddd;
+        }
+
+        button {
+            background-color: inherit;
+            color: inherit;
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            border-radius: 5px;
+        }
+
+        #themeToggleContainer {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+        }
+
+        #topControls button {
+            background-color: #3f51b5;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            margin-right: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        #topControls button:hover {
+            background-color: #303f9f;
+        }
+
+        #calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            max-width: 800px;
+            margin: auto;
+            margin-top: 20px;
+        }
+
+        .calendar-day {
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 10px;
+            min-height: 80px;
+            text-align: center;
+            cursor: pointer;
+            background-color: #f4f4f4;
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            background-color: #e0e0e0;
+        }
+
+        .day-label {
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .goal-count {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background-color: #3f51b5;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .popup-content {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            min-width: 300px;
+        }
+
+        .popup-content input {
+            width: 90%;
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        .popup-buttons {
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .popup-buttons button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .popup-buttons button:first-child {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .popup-buttons button:last-child {
+            background-color: #f44336;
+            color: white;
+        }       
+
+        .popup-content textarea {
+            width: 90%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            resize: vertical;
+        }
+
+        #warningModal .popup-content {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="topControls" style="position: fixed; top: 10px; right: 10px; z-index: 1000; display: flex; gap: 8px;">
+        <button onclick="window.location.href='index.html'">🏠 Ana Sayfa</button>
+        <button id="themeButton" onclick="toggleTheme()">🌞 Açık Mod</button>
+    </div>
+
+    <h2>🎯 Günlük Hedefler</h2>
+
+    <div>
+        <input type="text" id="newGoalInput" placeholder="Yeni hedef gir..." />
+        <button onclick="addDailyGoal()">Ekle</button>
+    </div>
+
+    <p id="goalProgressText"></p>
+
+    <p id="goalWarning" style="color: red;"></p>
+
+    <div id="goalListContainer"></div>
+
+    <h2>Aylık Hedef Takvimi</h2>
+    <div id="calendar"></div>
+    <div id="warningModal" class="popup-overlay" style="display:none;">
+        <div class="popup-content">
+            <h3>Geçersiz Tarih</h3>
+            <p>Bu tarihe planlama yapılamaz.</p>
+            <button type="button" onclick="closeWarningModal()">Tamam</button>
+        </div>
+    </div>
+
+    <div id="goalModal" class="popup-overlay" style="display:none;">
+        <div class="popup-content">
+            <h3 id="goalModalTitle"></h3>
+            <input type="number" id="dayGoalInput" min="0" placeholder="Hedef sayısı" />
+            <textarea id="dayGoalText" rows="4" placeholder="Bugünkü hedef(ler): Her satıra bir tane yaz."></textarea>
+            <div class="popup-buttons">
+                <button type="button" onclick="saveDayGoal()">Kaydet</button>
+                <button type="button" onclick="closeGoalModal()">İptal</button>
+                <button type="button" id="deleteGoalBtn" onclick="deleteDayGoal()" style="background-color:#e53935; color:white;">Sil</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+
+    let selectedDate = null;
+    
+    const isGuest = localStorage.getItem("isGuest") === "true";
+    if (isGuest) {
+        alert("Ziyaretçi kullanıcılar hedefleri kullanamaz.");
+        window.location.href = "index.html";
+    }
+    let dailyGoals = [];
+    let goalStorageKey = "dailyGoals_default";
+
+    function loadDailyGoals() {
+        dailyGoals = JSON.parse(localStorage.getItem(goalStorageKey) || "[]");
+        renderDailyGoals();
+    }
+
+    function saveDailyGoals() {
+        localStorage.setItem(goalStorageKey, JSON.stringify(dailyGoals));
+    }
+
+    function addDailyGoal() {
+        const input = document.getElementById("newGoalInput");
+        const text = input.value.trim();
+        const warning = document.getElementById("goalWarning");
+
+        const dailyGoalLimit = parseInt(localStorage.getItem("dailyGoalLimit")) || 0;
+
+        if (dailyGoals.length >= dailyGoalLimit) {
+            warning.textContent = `⚠ Maksimum ${dailyGoalLimit} hedef ekleyebilirsin.`;
+            return;
+        }
+
+        if (!text) return;
+
+        warning.textContent = ""; // uyarı silinsin
+        dailyGoals.push({ text, completed: false });
+        input.value = "";
+        saveDailyGoals();
+        renderDailyGoals();
+    }
+
+    function toggleGoalComplete(index) {
+        dailyGoals[index].completed = !dailyGoals[index].completed;
+        saveDailyGoals();
+        renderDailyGoals();
+    }
+
+    function deleteGoal(index) {
+        dailyGoals.splice(index, 1);
+        saveDailyGoals();
+        renderDailyGoals();
+    }
+
+    function editGoal(index) {
+        const newText = prompt("Yeni hedef:", dailyGoals[index].text);
+        if (newText !== null) {
+            dailyGoals[index].text = newText.trim();
+            saveDailyGoals();
+            renderDailyGoals();
+        }
+    }
+
+    function renderDailyGoals() {
+        const container = document.getElementById("goalListContainer");
+        container.innerHTML = "";
+
+        dailyGoals.forEach((goal, index) => {
+            const div = document.createElement("div");
+            div.className = "goal-item" + (goal.completed ? " completed" : "");
+            div.innerHTML = `
+                <span>${goal.text}</span>
+                <div>
+                <button onclick="toggleGoalComplete(${index})">✔</button>
+                <button onclick="editGoal(${index})">✏</button>
+                <button onclick="deleteGoal(${index})">🗑</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+
+        renderGoalProgressText();
+    }
+
+    function toggleTheme() {
+        const current = document.body.classList.contains("dark") ? "dark" : "light";
+        const newTheme = current === "dark" ? "light" : "dark";
+        document.body.classList.remove(current);
+        document.body.classList.add(newTheme);
+        localStorage.setItem("theme", newTheme);
+        updateThemeButtonText(newTheme);
+        }
+
+    function applySavedTheme() {
+        const saved = localStorage.getItem("theme") || "light";
+        document.body.classList.add(saved);
+        updateThemeButtonText(saved);
+    }
+
+    function updateThemeButtonText(theme) {
+        const btn = document.getElementById("themeButton");
+        if (btn) btn.textContent = theme === "dark" ? "🌙 Karanlık Mod" : "🌞 Açık Mod";
+    }
+
+    function renderGoalProgressText() {
+        const limit = parseInt(localStorage.getItem("dailyGoalLimit")) || 0;
+        const progress = dailyGoals.length;
+        const p = document.getElementById("goalProgressText");
+        if (limit > 0) {
+            p.textContent = `📌 Eklenen hedef: ${progress} / ${limit}`;
+        } else {
+            p.textContent = "";
+        }
+    }
+
+    function generateCalendar() {
+        const calendar = document.getElementById("calendar");
+        calendar.innerHTML = "";
+
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth();
+        const totalDays = new Date(year, month + 1, 0).getDate();
+        const firstDayOfWeek = new Date(year, month, 1).getDay();
+
+        const username = localStorage.getItem("username") || localStorage.getItem("guestUsername") || "default";
+        const key = `monthlyGoals_${username}`;
+        const goalData = JSON.parse(localStorage.getItem(key) || "{}");
+
+        for (let i = 0; i < firstDayOfWeek; i++) {
+            const empty = document.createElement("div");
+            calendar.appendChild(empty);
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+            const div = document.createElement("div");
+            div.className = "calendar-day";
+            div.innerHTML = `<div class="day-label">${day}</div>`;
+
+            const dateKey = `${year}-${month + 1}-${day}`;
+            if (goalData[dateKey]) {
+                const badge = document.createElement("div");
+                badge.className = "goal-count";
+                badge.textContent = goalData[dateKey].count + " 🎯";
+                div.appendChild(badge);
+
+                if (goalData[dateKey].items && goalData[dateKey].items.length) {
+                    div.title = goalData[dateKey].items.join("\n");
+                }
+            }
+
+            div.onclick = () => openGoalModal(dateKey);
+            calendar.appendChild(div);
+        }
+    }
+
+    function openGoalModal(dateKey) {
+        const [y, m, d] = dateKey.split("-").map(Number);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selected = new Date(y, m - 1, d);
+        if (selected < today) {
+            document.getElementById("warningModal").style.display = "flex";
+            return;
+        }
+        
+        selectedDate = dateKey;
+        document.getElementById("goalModalTitle").textContent = `${dateKey} hedefi`;
+
+        const username = localStorage.getItem("username") || localStorage.getItem("guestUsername") || "default";
+        const key = `monthlyGoals_${username}`;
+        const goalData = JSON.parse(localStorage.getItem(key) || "{}");
+
+        const existing = goalData[dateKey] || {};
+        document.getElementById("dayGoalInput").value = existing.count || "";
+        document.getElementById("dayGoalText").value = existing.items ? existing.items.join("\n") : "";
+
+        document.getElementById("deleteGoalBtn").style.display = existing.count || (existing.items && existing.items.length)
+            ? "inline-block"
+            : "none";
+
+        document.getElementById("goalModal").style.display = "flex";
+    }
+
+    function saveDayGoal() {
+        const count = parseInt(document.getElementById("dayGoalInput").value);
+        const textRaw = document.getElementById("dayGoalText").value;
+        const lines = textRaw.split("\n").map(x => x.trim()).filter(x => x);
+
+        if (!isNaN(count) && lines.length > count) {
+            alert(`⚠ Girdiğiniz hedef sayısı (${lines.length}) tanımlanan sınırdan (${count}) fazla.`);
+            return;
+        }
+
+        const username = localStorage.getItem("username") || localStorage.getItem("guestUsername") || "default";
+        const key = `monthlyGoals_${username}`;
+        const goalData = JSON.parse(localStorage.getItem(key) || "{}");
+
+        goalData[selectedDate] = {
+            count: isNaN(count) ? 0 : count,
+            items: lines
+        };
+
+        localStorage.setItem(key, JSON.stringify(goalData));
+
+        closeGoalModal();
+        generateCalendar();
+    }
+
+    function deleteDayGoal() {
+        if (!selectedDate) return;
+
+        const confirmDelete = confirm(`${selectedDate} tarihli hedef silinsin mi?`);
+        if (!confirmDelete) return;
+
+        const username = localStorage.getItem("username") || localStorage.getItem("guestUsername") || "default";
+        const key = `monthlyGoals_${username}`;
+        const goalData = JSON.parse(localStorage.getItem(key) || "{}");
+
+        delete goalData[selectedDate];
+        localStorage.setItem(key, JSON.stringify(goalData));
+
+        selectedDate = null;
+        document.getElementById("goalModal").style.display = "none";
+    
+        setTimeout(() => {
+            generateCalendar();
+        }, 10);
+    }
+
+    function closeWarningModal() {
+        document.getElementById("warningModal").style.display = "none";
+    }
+
+    function closeGoalModal() {
+        document.getElementById("goalModal").style.display = "none";
+        selectedDate = null;
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+        const username = localStorage.getItem("username") || localStorage.getItem("guestUsername");
+        if (username) {
+            goalStorageKey = `dailyGoals_${username}`;
+        }
+
+        applySavedTheme();
+        loadDailyGoals();
+        generateCalendar();
+    });
+
+</script>
+</body>
+</html>
