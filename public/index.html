@@ -367,7 +367,10 @@
         <button onclick="toggleSidebar()" id="closeSidebar">❌</button>
         <h3>Kısayollar</h3>
         <ul>
-            <li><button onclick="document.getElementById('goalInput').focus()">🎯 Hedef Belirle</button></li>
+            <li id="goalButtons" style="display: none;">
+                <button onclick="openGoalPopup()">🎯 Hedef Belirle</button>
+                <button onclick="window.location.href='goals.html'">🎯 Hedefler</button>
+            </li>
             <li><button onclick="toggleTheme()">🎨 Tema Değiştir</button></li>
             <li><button onclick="logout()">🚪 Çıkış</button></li>
         </ul>
@@ -384,10 +387,6 @@
         <h2>Todo Web</h2>
     </div>
 
-    <div id="dailyGoalStatus" style="position: absolute; top: 10px; left: 10px; font-weight: bold;">
-    🎯 Hedef: <span id="goalCount">0</span>/<span id="goalLimit">0</span> <span id="goalTrophy" style="display: none;">🏆</span>
-    </div>
-
     <div id="editPopup" class="popup-overlay" style="display: none;">
         <div class="popup-content">
             <h3>Todo Düzenle</h3>
@@ -397,6 +396,17 @@
             <div class="popup-buttons">
                 <button onclick="saveEditedTodo()">Kaydet</button>
                 <button onclick="closeEditPopup()">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="goalPopup" class="popup-overlay" style="display: none;">
+        <div class="popup-content">
+            <h3>Günlük Hedefini Belirle</h3>
+            <input type="number" id="goalInput" min="1" placeholder="Kaç todo tamamlamak istiyorsun?" />
+            <div class="popup-buttons">
+                <button onclick="saveGoal()">Kaydet</button>
+                <button onclick="closeGoalPopup()">İptal</button>
             </div>
         </div>
     </div>
@@ -429,6 +439,7 @@
         <option value="list2">List 2</option>
     </select>
     <button onclick="addNewTodo()">Todo Ekle</button>
+    <button onclick="deleteSelectedList()">Listeyi Sil</button>
   
     <h3>📥 Inbox</h3>
         <div id="inboxContainer"></div>
@@ -440,6 +451,10 @@
         <div id="upcomingContainer"></div>
     
     <div id="userInfoDisplay"></div>
+
+    <div id="dailyGoalStatus" style="position: absolute; top: 100px; left: 10px; font-weight: bold; z-index: 1;">
+        🎯 Hedef: <span id="goalCount">0</span>/<span id="goalLimit">0</span> <span id="goalTrophy" style="display: none;">🏆</span>
+    </div>
 
 <script>
     
@@ -657,15 +672,47 @@
         const listName = input.value.trim();
         if (!listName) return;
 
-        const savedLists = JSON.parse(localStorage.getItem("customLists") || "[]");
+        const username = localStorage.getItem("username") || localStorage.getItem("guestUsername") || "default";
+        const listKey = `customLists_${username}`;
+        const savedLists = JSON.parse(localStorage.getItem(listKey) || "[]");
 
         if (savedLists.includes(listName)) return alert("Bu liste zaten var.");
 
         savedLists.push(listName);
-        localStorage.setItem("customLists", JSON.stringify(savedLists));
+        localStorage.setItem(listKey, JSON.stringify(savedLists));
 
         renderListOptions();
         input.value = "";
+    }
+
+    function deleteSelectedList() {
+        const select = document.getElementById("todoListSelect");
+        const selected = select.value;
+
+        if (selected === "list1" || selected === "list2") {
+            alert("Varsayılan listeler silinemez.");
+            return;
+        }
+
+        const confirmDelete = confirm(`"${selected}" adlı listeyi silmek istediğinizden emin misiniz?`);
+        if (!confirmDelete) return;
+
+        const username = localStorage.getItem("username") || localStorage.getItem("guestUsername") || "default";
+        const listKey = `customLists_${username}`;
+
+        let savedLists = JSON.parse(localStorage.getItem(listKey) || "[]");
+        savedLists = savedLists.filter(name => name !== selected);
+        localStorage.setItem(listKey, JSON.stringify(savedLists));
+
+        const isGuest = localStorage.getItem("isGuest") === "true";
+        if (isGuest) {
+            let guestTodos = JSON.parse(localStorage.getItem("guestTodos") || "[]");
+            guestTodos = guestTodos.filter(todo => todo.list !== selected);
+            localStorage.setItem("guestTodos", JSON.stringify(guestTodos));
+        }
+
+        renderListOptions();
+        fetchTodos();
     }
 
     async function addNewTodo() {
@@ -675,6 +722,18 @@
 
         if (!text) return;
 
+        const isGuest = localStorage.getItem("isGuest") === "true";
+        if (isGuest) {
+            if (dueDate) {
+                alert("Ziyaretçiler yalnızca Inbox’a todo ekleyebilir.");
+                return;
+            }
+            if (list !== "list1") {
+                alert("Ziyaretçiler yalnızca Inbox listesine todo ekleyebilir.");
+                return;
+            }
+        }
+        
         const payload = { text, list, dueDate };
 
         try {
@@ -742,11 +801,21 @@
     }
 
     function updateGoalUI() {
-        document.getElementById("goalCount").textContent = completedToday;
         document.getElementById("goalLimit").textContent = dailyGoalLimit;
 
+        const completedTodos = countTodayCompleted(todos);
+
+        const username = localStorage.getItem("username") || localStorage.getItem("guestUsername");
+        const goalKey = `dailyGoals_${username}`;
+        const dailyGoals = JSON.parse(localStorage.getItem(goalKey) || "[]");
+
+        const completedGoals = dailyGoals.filter(goal => goal.completed).length;
+
+        const totalCompleted = completedTodos + completedGoals;
+        document.getElementById("goalCount").textContent = totalCompleted;
+
         const trophy = document.getElementById("goalTrophy");
-        if (completedToday >= dailyGoalLimit) {
+        if (dailyGoalLimit > 0 && totalCompleted >= dailyGoalLimit) {
             trophy.style.display = "inline";
         } else {
             trophy.style.display = "none";
@@ -784,7 +853,9 @@
             todoListSelect.appendChild(opt2);
         }
 
-        const savedLists = JSON.parse(localStorage.getItem("customLists") || "[]");
+        const username = localStorage.getItem("username") || localStorage.getItem("guestUsername") || "default";
+        const listKey = `customLists_${username}`;
+        const savedLists = JSON.parse(localStorage.getItem(listKey) || "[]");
 
         for (const name of savedLists) {
             const opt1 = document.createElement("option");
@@ -876,12 +947,65 @@
         fetchTodos();
     }
 
+    function openGoalPopup() {
+        const isGuest = localStorage.getItem("isGuest") === "true";
+        if (isGuest) {
+            alert("Ziyaretçiler hedef belirleyemez.");
+            return;
+        }
+
+        document.getElementById("goalPopup").style.display = "flex";
+        document.getElementById("goalInput").focus();
+    }
+
+    function closeGoalPopup() {
+        document.getElementById("goalPopup").style.display = "none";
+    }
+
+    function saveGoal() {
+        const input = document.getElementById("goalInput");
+        const newGoal = parseInt(input.value);
+
+        if (!isNaN(newGoal) && newGoal > 0) {
+            dailyGoalLimit = newGoal;
+            const username = localStorage.getItem("username") || localStorage.getItem("guestUsername") || "default";
+            const key = `dailyGoalLimit_${username}`;
+            localStorage.setItem(key, newGoal);
+
+            updateGoalUI();
+            closeGoalPopup();
+        }
+    }
+
+    function getSavedGoalLimit() {
+        const username = localStorage.getItem("username") || localStorage.getItem("guestUsername") || "default";
+        const key = `dailyGoalLimit_${username}`;
+        const saved = parseInt(localStorage.getItem(key));
+        return isNaN(saved) ? 0 : saved;
+    }
+
     window.addEventListener("DOMContentLoaded", async () => {
         applySavedTheme();
         await checkLoginStatus();
         updateUserDisplay();
         fetchTodos();
         renderListOptions();
+        dailyGoalLimit = getSavedGoalLimit();
+        updateGoalUI();
+
+        const isGuest = localStorage.getItem("isGuest") === "true";
+        if (isGuest) {
+            document.getElementById("newListInput").style.display = "none";
+            document.querySelector("button[onclick='addNewList()']").style.display = "none";
+            document.querySelector("button[onclick='deleteSelectedList()']").style.display = "none";
+
+            document.getElementById("listFilter").disabled = true;
+            document.getElementById("todoListSelect").disabled = true;
+        }
+
+        if (!isGuest) {
+            document.getElementById("goalButtons").style.display = "block";
+        }
     });
 
     fetchTodos();
