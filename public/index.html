@@ -138,14 +138,6 @@
             min-width: 160px;
         }
 
-        #todoContainer {
-            border: 1px solid #ddd;
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-
         .todo-item {
             padding: 6px 12px;
             margin: 6px 0;
@@ -229,16 +221,6 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
-        body.dark #todoContainer {
-            background-color: #2b2b2b;
-            border-color: #444;
-        }
-
-        body.dark .todo-item {
-            background-color: #3a3a3a;
-            border-color: #555;
-        }
-
         body.dark input[type="text"],
 
         body.dark select {
@@ -299,6 +281,84 @@
             border-radius: 6px;
             opacity: 0.95;
         }
+
+        #userInfoDisplay {
+            position: fixed;
+            bottom: 10px;
+            right: 15px;
+            font-size: 14px;
+            opacity: 0.8;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-family: monospace;
+        }
+
+        .btn-edit {
+            background-color: #ffc107;
+            color: black;
+            border: none;
+            padding: 5px 8px;
+            margin-left: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5); /* Buğulu arka plan */
+            backdrop-filter: blur(4px);     /* Daha şık buğululuk */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+        }
+
+        .popup-content {
+            background: grey;
+            padding: 20px 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            min-width: 280px;
+        }
+
+        .popup-content input {
+            width: 90%;
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        .popup-buttons {
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .popup-buttons button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .popup-buttons button:first-child {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .popup-buttons button:last-child {
+            background-color: #f44336;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -326,6 +386,19 @@
 
     <div id="dailyGoalStatus" style="position: absolute; top: 10px; left: 10px; font-weight: bold;">
     🎯 Hedef: <span id="goalCount">0</span>/<span id="goalLimit">0</span> <span id="goalTrophy" style="display: none;">🏆</span>
+    </div>
+
+    <div id="editPopup" class="popup-overlay" style="display: none;">
+        <div class="popup-content">
+            <h3>Todo Düzenle</h3>
+            <input type="text" id="editTodoInput" placeholder="Metin" />
+            <input type="text" id="editListInput" placeholder="Liste" />
+            <input type="date" id="editDateInput" />
+            <div class="popup-buttons">
+                <button onclick="saveEditedTodo()">Kaydet</button>
+                <button onclick="closeEditPopup()">İptal</button>
+            </div>
+        </div>
     </div>
 
     <hr/>
@@ -356,11 +429,7 @@
         <option value="list2">List 2</option>
     </select>
     <button onclick="addNewTodo()">Todo Ekle</button>
-    <button onclick="saveAllTodos()">💾 Save</button>
   
-    <h3>📝 Kaydedilmemiş Todolar</h3>
-        <div id="todoContainer" style="display: none;"></div>
-    
     <h3>📥 Inbox</h3>
         <div id="inboxContainer"></div>
 
@@ -369,14 +438,15 @@
 
     <h3>📆 Upcoming</h3>
         <div id="upcomingContainer"></div>
-
+    
+    <div id="userInfoDisplay"></div>
 
 <script>
     
-    let pendingTodos = [];
     let todos = [];
     let dailyGoalLimit = 3;
     let completedToday = 0;
+    let currentEditTodoId = null;
 
     async function fetchTodos() {
         const isLoggedIn = await checkLoginStatus();
@@ -439,6 +509,7 @@
                 <span>${todo.text}</span>
                 <button class="btn-delete" onclick="deleteTodo(${todo.id})">Delete</button>
                 <button class="btn-complete" onclick="toggleComplete(${todo.id})">Complete</button>
+                <button class="btn-edit" onclick="editTodo(${todo.id})">✏️ Düzenle</button>
             `;
             container.appendChild(div);
         });
@@ -462,8 +533,8 @@
         const todo = todos.find(t => t.id === id);
         if (!todo) return;
 
-        await fetch(`/todos/${id}`, {
-            method: "PUT",
+        await fetch(`/todos/${id}/complete`, {
+            method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ completed: !todo.completed }),
         });
@@ -504,7 +575,6 @@
         });
 
         fetchTodos();
-        renderPendingTodos();
     }
 
     (async () => {
@@ -515,10 +585,36 @@
         }
     })();
 
+    async function guestLogin() {
+        try {
+            const res = await fetch("/register-guest", { method: "POST" });
+            const data = await res.json();
+
+            if (data.success) {
+                localStorage.setItem("isGuest", "true");
+                localStorage.setItem("guestUsername", data.guestUsername);
+                window.location.href = "index.html";
+            } else {
+                alert("Ziyaretçi girişi başarısız.");
+            }
+        } catch (err) {
+            onsole.error("Ziyaretçi login hatası:", err);
+            alert("Sunucu hatası.");
+        }
+    }
+
     async function checkLoginStatus() {
         try {
-            const res = await fetch("/auth-status");
+            const res = await fetch("/auth-status", {
+                credentials: "include"
+            });
             const data = await res.json();
+
+            if (data.loggedIn) {
+                localStorage.setItem("username", data.username);
+                updateUserDisplay();
+            }
+
             return data.loggedIn;
         } catch (err) {
             console.error("checkLoginStatus hatası:", err);
@@ -526,11 +622,31 @@
         }
     }
 
+    function updateUserDisplay() {
+        const container = document.getElementById("userInfoDisplay");
+        const isGuest = localStorage.getItem("isGuest") === "true";
+
+        if (container) {
+            if (isGuest) {
+                const guestUsername = localStorage.getItem("guestUsername") || "Ziyaretçi";
+                container.textContent = `👤 ${guestUsername}`;
+            } else {
+                const username = localStorage.getItem("username");
+                if (username) {
+                    container.textContent = `👤 ${username}`;
+                }
+            }
+        }
+    }
+
     async function logout() {
         localStorage.removeItem("guestTodos");
         localStorage.removeItem("isGuest");
     
-        const res = await fetch("/logout", { method: "POST" });
+        const res = await fetch("/logout", {
+            method: "POST",
+            credentials: "include"
+        });
         const data = await res.json();
     
         window.location.href = "auth.html";
@@ -541,90 +657,47 @@
         const listName = input.value.trim();
         if (!listName) return;
 
-        const listFilter = document.getElementById("listFilter");
-        const newOption = document.createElement("option");
-        newOption.value = listName;
-        newOption.textContent = listName;
-        listFilter.appendChild(newOption);
+        const savedLists = JSON.parse(localStorage.getItem("customLists") || "[]");
 
-        const todoListSelect = document.getElementById("todoListSelect");
-        const newOption2 = document.createElement("option");
-        newOption2.value = listName;
-        newOption2.textContent = listName;
-            todoListSelect.appendChild(newOption2);
+        if (savedLists.includes(listName)) return alert("Bu liste zaten var.");
 
+        savedLists.push(listName);
+        localStorage.setItem("customLists", JSON.stringify(savedLists));
+
+        renderListOptions();
         input.value = "";
     }
 
-    function addNewTodo() {
+    async function addNewTodo() {
         const text = document.getElementById("newTodoInput").value.trim();
         const list = document.getElementById("todoListSelect").value;
         const dueDate = document.getElementById("dueDateInput").value || null;
 
         if (!text) return;
 
-        const newTodo = {
-            id: Date.now(),
-            text,
-            list,
-            dueDate,
-            completed: false
-        };
+        const payload = { text, list, dueDate };
 
-        pendingTodos.push(newTodo); 
-        renderPendingTodos(); 
-        document.getElementById("newTodoInput").value = "";
-        document.getElementById("dueDateInput").value = "";
-    }
-
-    function renderPendingTodos() {
-        const container = document.getElementById("todoContainer");
-        if (pendingTodos.length === 0) {
-            container.style.display = "none";
-            return;
-        }
-        container.style.display = "block";
-        container.innerHTML = '';
-        pendingTodos.forEach((todo, index) => {
-            const div = document.createElement("div");
-            div.className = "todo-item" + (todo.completed ? " completed" : "");
-            div.innerHTML = `
-                <input type="checkbox" ${todo.completed ? "checked" : ""} onclick="togglePendingComplete(${index})"/>
-                <span>${todo.text} ${todo.dueDate ? `- (${todo.dueDate})` : ''}</span>
-                <div class="todo-controls">
-                    <button class="btn-delete" onclick="deletePendingTodo(${index})">Delete</button>
-                </div>
-            `;
-            container.appendChild(div);
-        });
-    }
-
-    async function saveAllTodos() {
-        const isLoggedIn = await checkLoginStatus();
-
-        for (let todo of pendingTodos) {
-            const payload = {
-                text: todo.text,
-                list: todo.list,
-                dueDate: todo.dueDate
-            };
-
+        try {
             const res = await fetch("/todos", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
+            const data = await res.json();
+
             if (!res.ok) {
-                const data = await res.json();
                 alert(`Hata: ${data.error}`);
                 return;
             }
-        }
 
-        pendingTodos = [];
-        fetchTodos(); 
-        renderPendingTodos();
+            document.getElementById("newTodoInput").value = "";
+            document.getElementById("dueDateInput").value = "";
+            fetchTodos(); // otomatik güncelle
+        } catch (err) {
+            alert("Bir hata oluştu.");
+            console.error(err);
+        }
     }
 
     function applyFilters() {
@@ -646,16 +719,6 @@
         renderTodosToContainer("inboxContainer", categorized.inbox);
         renderTodosToContainer("todayContainer", categorized.today);
         renderTodosToContainer("upcomingContainer", categorized.upcoming);
-    }
-
-    function deletePendingTodo(index) {
-        pendingTodos.splice(index, 1);
-        renderPendingTodos();
-    }
-
-    function togglePendingComplete(index) {
-        pendingTodos[index].completed = !pendingTodos[index].completed;
-        renderPendingTodos();
     }
 
     function toggleTheme() {
@@ -700,9 +763,129 @@
         sidebar.classList.toggle("open");
     }
 
-    window.addEventListener("DOMContentLoaded", applySavedTheme);
+    function renderListOptions() {
+        const listFilter = document.getElementById("listFilter");
+        const todoListSelect = document.getElementById("todoListSelect");
+
+        const defaultOptions = ["list1", "list2"];
+    
+        listFilter.innerHTML = '<option value="all">All</option>';
+        todoListSelect.innerHTML = "";
+
+        for (const name of defaultOptions) {
+            const opt1 = document.createElement("option");
+            opt1.value = name;
+            opt1.textContent = name;
+            listFilter.appendChild(opt1);
+
+            const opt2 = document.createElement("option");
+            opt2.value = name;
+            opt2.textContent = name;
+            todoListSelect.appendChild(opt2);
+        }
+
+        const savedLists = JSON.parse(localStorage.getItem("customLists") || "[]");
+
+        for (const name of savedLists) {
+            const opt1 = document.createElement("option");
+            opt1.value = name;
+            opt1.textContent = name;
+            listFilter.appendChild(opt1);
+
+            const opt2 = document.createElement("option");
+            opt2.value = name;
+            opt2.textContent = name;
+            todoListSelect.appendChild(opt2);
+        }
+    }
+    
+    function editTodo(id) {
+        const todo = todos.find(t => t.id === id);
+        if (!todo) return;
+
+        const newText = prompt("Yeni todo metni:", todo.text);
+        if (newText === null) return;
+
+        const newList = prompt("Yeni liste adı:", todo.list);
+        if (newList === null) return;
+
+        const newDate = prompt("Yeni tarih (YYYY-MM-DD):", todo.dueDate || "");
+        if (newDate === null) return;
+
+        fetch(`/todos/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                text: newText,
+                list: newList,
+                dueDate: newDate || null
+            })
+        }).then(() => fetchTodos());
+    }
+
+    function editTodo(id) {
+        const todo = todos.find(t => t.id === id);
+        if (!todo) return;
+
+        currentEditTodoId = id;
+        document.getElementById("editTodoInput").value = todo.text || "";
+        document.getElementById("editListInput").value = todo.list || "";
+        document.getElementById("editDateInput").value = todo.dueDate || "";
+        document.getElementById("editPopup").style.display = "flex";
+    }
+
+    function closeEditPopup() {
+        document.getElementById("editPopup").style.display = "none";
+        currentEditTodoId = null;
+    }
+
+    async function saveEditedTodo() {
+        const newText = document.getElementById("editTodoInput").value.trim();
+        const newList = document.getElementById("editListInput").value.trim();
+        const newDate = document.getElementById("editDateInput").value;
+
+        if (!newText || currentEditTodoId === null) return;
+
+        const isLoggedIn = await checkLoginStatus();
+        if (!isLoggedIn) {
+            let guestTodos = JSON.parse(localStorage.getItem("guestTodos") || "[]");
+            const index = guestTodos.findIndex(t => t.id === currentEditTodoId);
+            if (index !== -1) {
+                guestTodos[index].text = newText;
+                guestTodos[index].list = newList;
+                guestTodos[index].dueDate = newDate;
+                localStorage.setItem("guestTodos", JSON.stringify(guestTodos));
+                todos = guestTodos;
+            }
+            closeEditPopup();
+            applyFilters();
+            return;
+        }
+
+        await fetch(`/todos/${currentEditTodoId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                text: newText,
+                list: newList,
+                dueDate: newDate || null
+            })
+        });
+
+        closeEditPopup();
+        fetchTodos();
+    }
+
+    window.addEventListener("DOMContentLoaded", async () => {
+        applySavedTheme();
+        await checkLoginStatus();
+        updateUserDisplay();
+        fetchTodos();
+        renderListOptions();
+    });
 
     fetchTodos();
+    renderListOptions();
 
 </script>
 </body>
