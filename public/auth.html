@@ -187,6 +187,7 @@
 
             if (data.success) {
                 localStorage.setItem("isGuest", "false");
+                localStorage.setItem("username", data.username);
 
                 setTimeout(() => {
                     window.location.href = "index.html";
@@ -216,9 +217,22 @@
             data.success ? "✅ Kayıt başarılı, şimdi giriş yap." : `❌ ${data.error || "Kayıt başarısız"}`;
     }
 
-    function guestLogin() {
-        localStorage.setItem("isGuest", "true");
-        window.location.href = "index.html";
+    async function guestLogin() {
+        try {
+            const res = await fetch("/register-guest", { method: "POST" });
+            const data = await res.json();
+
+            if (data.success) {
+                localStorage.setItem("isGuest", "true");
+                localStorage.setItem("guestUsername", data.guestUsername); // 👈 Kullanıcı adını kaydet
+                window.location.href = "index.html";
+            } else {
+                alert("Ziyaretçi girişi başarısız.");
+            }
+        } catch (err) {
+            console.error("Ziyaretçi login hatası:", err);
+            alert("Sunucu hatası.");
+        }
     }
 
     function toggleTheme() {
